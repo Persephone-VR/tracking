@@ -1,0 +1,14 @@
+# Cargo
+/target
+# Nix
+/result
+# Direnv
+/.direnv
+# CLion
+/.idea
+
+# Added by cargo
+#
+# already existing elements were commented out
+
+#/target

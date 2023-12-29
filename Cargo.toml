@@ -1,0 +1,16 @@
+[package]
+name = "tracking"
+description = "A simple inside-out tracking demo for custom vr headsets"
+version = "0.1.0"
+license = "ISC"
+edition = "2021"
+
+# MSRV
+rust-version = "1.74.0"
+
+[features]
+default = []
+foobar = []
+
+[dependencies]
+bevy = "0.12.1"
