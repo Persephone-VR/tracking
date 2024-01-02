@@ -1,124 +1,57 @@
-//! This example demonstrates Bevy's immediate mode drawing API intended for visual debugging.
-
-use std::f32::consts::PI;
-
-use bevy::prelude::*;
+use hidapi::HidApi;
 
 fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .add_systems(Startup, setup)
-        .add_systems(Update, (system, rotate_camera, update_config))
-        .run();
-}
+    // Create a new instance of the HidApi
+    let api = HidApi::new().expect("Failed to initialize HID API");
 
-fn setup(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(0., 1.5, 6.).looking_at(Vec3::ZERO, Vec3::Y),
-        ..default()
-    });
-    // plane
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Plane::from_size(5.0))),
-        material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
-        ..default()
-    });
-    // cube
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-        transform: Transform::from_xyz(0.0, 0.5, 0.0),
-        ..default()
-    });
-    // light
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
-            intensity: 1500.0,
-            shadows_enabled: true,
-            ..default()
-        },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0),
-        ..default()
-    });
+    // Get a list of all connected HID devices
+    let devices = api.device_list();
 
-    // example instructions
-    commands.spawn(
-        TextBundle::from_section(
-            "Press 'D' to toggle drawing gizmos on top of everything else in the scene\n\
-            Press 'P' to toggle perspective for line gizmos\n\
-            Hold 'Left' or 'Right' to change the line width",
-            TextStyle {
-                font_size: 20.,
-                ..default()
-            },
-        )
-        .with_style(Style {
-            position_type: PositionType::Absolute,
-            top: Val::Px(12.0),
-            left: Val::Px(12.0),
-            ..default()
-        }),
-    );
-}
-
-fn system(mut gizmos: Gizmos, time: Res<Time>) {
-    gizmos.cuboid(
-        Transform::from_translation(Vec3::Y * 0.5).with_scale(Vec3::splat(1.)),
-        Color::BLACK,
-    );
-    gizmos.rect(
-        Vec3::new(time.elapsed_seconds().cos() * 2.5, 1., 0.),
-        Quat::from_rotation_y(PI / 2.),
-        Vec2::splat(2.),
-        Color::GREEN,
-    );
-
-    gizmos.sphere(Vec3::new(1., 0.5, 0.), Quat::IDENTITY, 0.5, Color::RED);
-
-    for y in [0., 0.5, 1.] {
-        gizmos.ray(
-            Vec3::new(1., y, 0.),
-            Vec3::new(-3., (time.elapsed_seconds() * 3.).sin(), 0.),
-            Color::BLUE,
-        );
+    // Iterate over the devices and find the one with the desired Product string
+    let mut arduino_micro_device = None;
+    for device in devices {
+        if let Some(product_string) = device.product_string() {
+            if product_string == "Arduino Micro" {
+                arduino_micro_device = Some(device);
+                break;
+            }
+        }
     }
 
-    // Circles have 32 line-segments by default.
-    gizmos.circle(Vec3::ZERO, Vec3::Y, 3., Color::BLACK);
-    // You may want to increase this for larger circles or spheres.
-    gizmos
-        .circle(Vec3::ZERO, Vec3::Y, 3.1, Color::NAVY)
-        .segments(64);
-    gizmos
-        .sphere(Vec3::ZERO, Quat::IDENTITY, 3.2, Color::BLACK)
-        .circle_segments(64);
-}
+    // Check if the Arduino Micro device was found
+    if let Some(arduino_micro_device) = arduino_micro_device {
+        // Read data from the Arduino Micro device in a loop
+        loop {
+            let mut buf = [0u8; 64];
+            let bytes_read = arduino_micro_device
+                .open_device(&api)
+                .expect("Failed to open Arduino Micro device")
+                .read(&mut buf)
+                .expect("Failed to read data from Arduino Micro");
 
-fn rotate_camera(mut query: Query<&mut Transform, With<Camera>>, time: Res<Time>) {
-    let mut transform = query.single_mut();
+            // Process the read data
+            let quat: [u8; 63] = [
+                buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7], buf[8], buf[9],
+                buf[10], buf[11], buf[12], buf[13], buf[14], buf[15], buf[16], buf[17], buf[18],
+                buf[19], buf[20], buf[21], buf[22], buf[23], buf[24], buf[25], buf[26], buf[27],
+                buf[28], buf[29], buf[30], buf[31], buf[32], buf[33], buf[34], buf[35], buf[36],
+                buf[37], buf[38], buf[39], buf[40], buf[41], buf[42], buf[43], buf[44], buf[45],
+                buf[46], buf[47], buf[48], buf[49], buf[50], buf[51], buf[52], buf[53], buf[54],
+                buf[55], buf[56], buf[57], buf[58], buf[59], buf[60], buf[61], buf[62],
+            ];
 
-    transform.rotate_around(Vec3::ZERO, Quat::from_rotation_y(time.delta_seconds() / 2.));
-}
+            // Round the numbers to two decimal places and force the format "x.xx"
+            let rounded_quat: Vec<String> = quat.iter().map(|&num| format!("{:.2}", num)).collect();
 
-fn update_config(mut config: ResMut<GizmoConfig>, keyboard: Res<Input<KeyCode>>, time: Res<Time>) {
-    if keyboard.just_pressed(KeyCode::D) {
-        config.depth_bias = if config.depth_bias == 0. { -1. } else { 0. };
-    }
-    if keyboard.just_pressed(KeyCode::P) {
-        // Toggle line_perspective
-        config.line_perspective ^= true;
-        // Increase the line width when line_perspective is on
-        config.line_width *= if config.line_perspective { 5. } else { 1. / 5. };
-    }
+            // Clear the terminal screen
+            print!("\x1B[2J\x1B[1;1H");
 
-    if keyboard.pressed(KeyCode::Right) {
-        config.line_width += 5. * time.delta_seconds();
-    }
-    if keyboard.pressed(KeyCode::Left) {
-        config.line_width -= 5. * time.delta_seconds();
+            println!("Read {} bytes from Arduino Micro:", bytes_read);
+            for i in 0..4 {
+                println!("quat[{}]: {}", i, rounded_quat[i]);
+            }
+        }
+    } else {
+        println!("Arduino Micro device not found");
     }
 }
