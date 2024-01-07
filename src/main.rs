@@ -5,6 +5,12 @@ use nokhwa::{
     CallbackCamera,
 };
 
+use winit::{
+    event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoop},
+    window::WindowBuilder,
+};
+
 #[cfg(target_os = "macos")]
 use nokhwa::nokhwa_initialize;
 
@@ -17,7 +23,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    let cameras: Vec<nokhwa::utils::CameraInfo> = query(ApiBackend::Auto)?;
+    let cameras: Vec<nokhwa::utils::CameraInfo> =
+        query(ApiBackend::Auto).map_err(|e| -> Box<dyn std::error::Error> { Box::new(e) })?;
     if cameras.is_empty() {
         eprintln!("No cameras found");
         return Ok(());
@@ -44,16 +51,52 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     .unwrap();
     threaded.open_stream().unwrap();
 
-    loop {
-        match threaded.poll_frame() {
-            Ok(frame) => match frame.decode_image::<RgbAFormat>() {
-                Ok(image) => println!("{}x{} {}", image.width(), image.height(), image.len()),
-                Err(e) => eprintln!("Error decoding image: {}", e),
-            },
-            Err(e) => {
-                eprintln!("Error polling frame: {}", e);
-                return Ok(()); // exit
+    // window shit down here
+
+    let event_loop = EventLoop::new().map_err(|e| -> Box<dyn std::error::Error> { Box::new(e) })?;
+
+    event_loop.set_control_flow(ControlFlow::Poll);
+
+    let window = WindowBuilder::new()
+        .with_title("Persephone VR Tracking")
+        .with_inner_size(winit::dpi::LogicalSize::new(128.0, 128.0))
+        .build(&event_loop)
+        .unwrap();
+
+    event_loop
+        .run(move |event, elwt| {
+            println!("{event:?}");
+
+            match event {
+                Event::WindowEvent { event, window_id } if window_id == window.id() => {
+                    match event {
+                        WindowEvent::CloseRequested => elwt.exit(),
+                        WindowEvent::RedrawRequested => {
+                            // Notify the windowing system that we'll be presenting to the window.
+                            window.pre_present_notify();
+                        }
+                        _ => (),
+                    }
+                }
+                Event::AboutToWait => {
+                    match threaded.poll_frame() {
+                        Ok(frame) => match frame.decode_image::<RgbAFormat>() {
+                            Ok(image) => {
+                                println!("{}x{} {}", image.width(), image.height(), image.len())
+                            }
+                            Err(e) => eprintln!("Error decoding image: {}", e),
+                        },
+                        Err(e) => {
+                            eprintln!("Error polling frame: {}", e);
+                        }
+                    }
+
+                    window.request_redraw();
+                }
+
+                _ => (),
             }
-        }
-    }
+        })
+        .unwrap();
+    Ok(())
 }
