@@ -1,0 +1,58 @@
+%YAML 1.2
+---
+camera_matrix:
+  cols: 3
+  data:
+    [
+      224.1898022585651,
+      0,
+      315.2836572226618,
+      0,
+      224.7988474534924,
+      241.5352849559782,
+      0,
+      0,
+      1,
+    ]
+  rows: 3
+camera_name: camera-notape
+distortion_coefficients:
+  cols: 8
+  data:
+    [
+      0.2469736608609463,
+      -0.2776481937910962,
+      -0.001600417094804152,
+      -0.001124087110245915,
+      0.07588771311627353,
+      0,
+      0,
+      0,
+    ]
+  rows: 1
+distortion_model: plumb_bob
+focal_length_meters: 0
+image_height: 480
+image_width: 640
+projection_matrix:
+  cols: 4
+  data:
+    [
+      224.1898022585651,
+      0,
+      315.2836572226618,
+      0,
+      0,
+      224.7988474534924,
+      241.5352849559782,
+      0,
+      0,
+      0,
+      1,
+      0,
+    ]
+  rows: 3
+rectification_matrix:
+  cols: 3
+  data: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+  rows: 3
