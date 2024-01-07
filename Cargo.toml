@@ -6,12 +6,15 @@ license = "ISC"
 edition = "2021"
 
 # MSRV
-rust-version = "1.74.0"
-
-[features]
-default = []
-foobar = []
+rust-version = "1.70.0"
 
 [dependencies]
-hidapi = "2.4.1"
+pixels = "0.13.0"
+winit = "0.29.9"
+[dependencies.image]
+version = "0.24.7"
+default-features = false
 
+[dependencies.nokhwa]
+version = "0.10.1"
+features = ["input-native", "output-threaded"]
