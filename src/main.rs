@@ -1,16 +1,22 @@
 use nokhwa::{
-    nokhwa_initialize,
     pixel_format::{RgbAFormat, RgbFormat},
     query,
     utils::{ApiBackend, RequestedFormat, RequestedFormatType},
     CallbackCamera,
 };
 
+#[cfg(target_os = "macos")]
+use nokhwa::nokhwa_initialize;
+
 fn main() {
-    // only needs to be run on OSX
+    #[cfg(target_os = "macos")]
     nokhwa_initialize(|granted| {
-        println!("User said {}", granted);
+        if !granted {
+            eprintln!("Camera access not granted");
+            std::process::exit(1);
+        }
     });
+
     let cameras = query(ApiBackend::Auto).unwrap();
     cameras.iter().for_each(|cam| println!("{:?}", cam));
 
